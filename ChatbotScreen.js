@@ -36,12 +36,11 @@ const ChatbotScreen = () => {
     <View style={styles.header}>
       <View style={styles.headerContent}>
         <View style={styles.iconContainer}>
-          <MaterialCommunityIcons name="map-marker-radius" size={28} color="#FFF" />
-          <MaterialCommunityIcons name="chat-processing" size={24} color="#FFF" style={styles.chatIcon} />
+          <Ionicons name="chatbubble-ellipses" size={28} color="#FFF" />
         </View>
-        <Text style={styles.headerTitle}>GeoChat Asistan</Text>
+        <Text style={styles.headerTitle}>GeoBot</Text>
       </View>
-      <Text style={styles.headerSubtitle}>Konum ve Hava Durumu Bilgileri</Text>
+      <Text style={styles.headerSubtitle}>Chatbot Asistan</Text>
     </View>
   );
 
@@ -109,9 +108,17 @@ const ChatbotScreen = () => {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={styles.container}
     >
-      <StatusBar barStyle="light-content" />
-      <View style={styles.safeArea} />
-      {renderHeader()}
+      <StatusBar barStyle="light-content" backgroundColor="#28a745" />
+      <View style={styles.header}>
+        <View style={styles.headerContent}>
+          <View style={styles.iconContainer}>
+            <Ionicons name="chatbubble-ellipses" size={28} color="#FFF" />
+          </View>
+          <Text style={styles.headerTitle}>GeoBot</Text>
+        </View>
+        <Text style={styles.headerSubtitle}>Chatbot Asistan</Text>
+      </View>
+
       <View style={styles.contentContainer}>
         <FlatList
           ref={flatListRef}
@@ -125,7 +132,7 @@ const ChatbotScreen = () => {
 
         {loading && (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="small" color="#4CAF50" />
+            <ActivityIndicator size="small" color="#28a745" />
           </View>
         )}
 
@@ -138,14 +145,17 @@ const ChatbotScreen = () => {
             placeholderTextColor="#666"
           />
           <TouchableOpacity
-            style={styles.sendButton}
+            style={[
+              styles.sendButton,
+              !inputText.trim() && styles.sendButtonDisabled
+            ]}
             onPress={handleSend}
             disabled={!inputText.trim()}
           >
             <Ionicons
               name="send"
               size={24}
-              color={inputText.trim() ? "#4CAF50" : "#666"}
+              color={inputText.trim() ? "#28a745" : "#666"}
             />
           </TouchableOpacity>
         </View>
@@ -157,20 +167,12 @@ const ChatbotScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F5F5',
-  },
-  contentContainer: {
-    flex: 1,
-    backgroundColor: '#F5F5F5',
-  },
-  safeArea: {
-    height: Platform.OS === 'ios' ? 50 : StatusBar.currentHeight,
-    backgroundColor: '#4CAF50',
+    backgroundColor: '#f5f5f5',
   },
   header: {
-    backgroundColor: '#4CAF50',
-    padding: 16,
-    paddingTop: 20,
+    backgroundColor: '#28a745',
+    padding: 20,
+    paddingTop: Platform.OS === 'ios' ? 50 : 20,
     borderBottomLeftRadius: 20,
     borderBottomRightRadius: 20,
     elevation: 5,
@@ -182,43 +184,44 @@ const styles = StyleSheet.create({
   headerContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 4,
+    marginBottom: 10,
   },
   iconContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginRight: 10,
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    padding: 8,
+    padding: 10,
     borderRadius: 12,
-  },
-  chatIcon: {
-    marginLeft: -8,
+    marginRight: 10,
   },
   headerTitle: {
-    color: '#FFF',
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: 'bold',
+    color: '#FFF',
   },
   headerSubtitle: {
+    fontSize: 16,
     color: '#FFF',
-    fontSize: 14,
     opacity: 0.9,
+  },
+  contentContainer: {
+    flex: 1,
+    backgroundColor: '#f5f5f5',
   },
   messageList: {
     flex: 1,
-    padding: 10,
+    padding: 15,
   },
   messageBubble: {
     maxWidth: '80%',
     padding: 12,
     borderRadius: 20,
     marginVertical: 5,
-    elevation: 1,
+    elevation: 2,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 1,
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
   },
   botBubble: {
     backgroundColor: '#FFF',
@@ -226,24 +229,19 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 5,
   },
   userBubble: {
-    backgroundColor: '#4CAF50',
+    backgroundColor: '#28a745',
     alignSelf: 'flex-end',
     borderBottomRightRadius: 5,
   },
   messageText: {
     fontSize: 16,
-    lineHeight: 20,
+    lineHeight: 22,
   },
   botText: {
-    color: '#000',
+    color: '#333',
   },
   userText: {
     color: '#FFF',
-  },
-  weatherIcon: {
-    width: 50,
-    height: 50,
-    marginTop: 5,
   },
   loadingContainer: {
     padding: 10,
@@ -251,7 +249,7 @@ const styles = StyleSheet.create({
   },
   inputContainer: {
     flexDirection: 'row',
-    padding: 10,
+    padding: 15,
     backgroundColor: '#FFF',
     borderTopWidth: 1,
     borderTopColor: '#E8E8E8',
@@ -269,12 +267,23 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     marginRight: 10,
     fontSize: 16,
+    color: '#333',
   },
   sendButton: {
     justifyContent: 'center',
     alignItems: 'center',
     width: 44,
     height: 44,
+    borderRadius: 22,
+    backgroundColor: '#F5F5F5',
+  },
+  sendButtonDisabled: {
+    opacity: 0.5,
+  },
+  weatherIcon: {
+    width: 50,
+    height: 50,
+    marginTop: 5,
   },
 });
 

@@ -25,6 +25,12 @@ const ANTALYA_CENTER = {
   longitudeDelta: 0.1,
 };
 
+// Interpolasyon grid boyutunu artırıyoruz (daha az nokta = daha iyi performans)
+const GRID_SIZE = 0.002; // 0.001'den 0.002'ye çıkardık
+
+// Etki alanını azaltıyoruz
+const INFLUENCE_RADIUS = 3; // 5km'den 3km'ye düşürdük
+
 const PollutionMap = () => {
   const [location, setLocation] = useState(ANTALYA_CENTER);
   const [hotels, setHotels] = useState([]);
@@ -55,25 +61,26 @@ const PollutionMap = () => {
   // Noktaları interpole et
   const interpolatePoints = (points) => {
     const interpolatedPoints = [];
-    const gridSize = 0.001; // Daha yüksek çözünürlük için
+    const gridSize = GRID_SIZE;
 
     for (let lat = ANTALYA_BOUNDS.minLat; lat <= ANTALYA_BOUNDS.maxLat; lat += gridSize) {
       for (let lng = ANTALYA_BOUNDS.minLng; lng <= ANTALYA_BOUNDS.maxLng; lng += gridSize) {
         let totalWeight = 0;
         let weightedPollution = 0;
+        let hasNearbyPoint = false;
 
-        points.forEach(point => {
+        for (const point of points) {
           const distance = calculateDistance(lat, lng, point.latitude, point.longitude);
-          if (distance <= 5) { // Etki alanını 5km'ye çıkardık
-            // Gaussian dağılım ile daha yumuşak geçişler
-            const sigma = 1.5;
+          if (distance <= INFLUENCE_RADIUS) {
+            hasNearbyPoint = true;
+            const sigma = 1.0; // 1.5'ten 1.0'a düşürdük
             const weight = Math.exp(-(distance * distance) / (2 * sigma * sigma));
             totalWeight += weight;
             weightedPollution += point.pollution_level * weight;
           }
-        });
+        }
 
-        if (totalWeight > 0) {
+        if (hasNearbyPoint && totalWeight > 0) {
           interpolatedPoints.push({
             latitude: lat,
             longitude: lng,
@@ -175,31 +182,88 @@ const PollutionMap = () => {
     }
   };
 
+  const handleMapPress = (e) => {
+    const newLocation = e.nativeEvent.coordinate;
+    setSelectedLocation(newLocation);
+    // Haritayı yavaşça seçilen konuma kaydır
+    setLocation({
+      latitude: newLocation.latitude,
+      longitude: newLocation.longitude,
+      latitudeDelta: 0.1,
+      longitudeDelta: 0.1,
+    });
+  };
+
   const findBestHotel = async () => {
     if (!selectedLocation) {
       Alert.alert('Uyarı', 'Lütfen haritadan bir konum seçin.');
       return;
     }
 
+    if (!radius || isNaN(radius) || radius <= 0) {
+      Alert.alert('Uyarı', 'Lütfen geçerli bir arama yarıçapı girin (1-99 km).');
+      return;
+    }
+
     try {
       setLoading(true);
+      // Otelleri ve hava kalitesini otomatik göster
+      setShowHotels(true);
+      setShowAirQuality(true);
+
       const response = await fetch(
         `${API_BASE_URL}/api/best-hotel?lat=${selectedLocation.latitude}&lng=${selectedLocation.longitude}&radius=${radius}`
       );
+
+      if (!response.ok) {
+        throw new Error('Sunucu yanıt vermedi');
+      }
+
       const bestHotel = await response.json();
-      if (bestHotel) {
+
+      if (bestHotel && bestHotel.name) {
         setBestHotel({
           ...bestHotel,
           latitude: parseFloat(bestHotel.latitude),
           longitude: parseFloat(bestHotel.longitude)
         });
-        Alert.alert('Başarılı', `En uygun otel bulundu: ${bestHotel.name}`);
+
+        // Haritayı bulunan otele odakla
+        setLocation({
+          latitude: parseFloat(bestHotel.latitude),
+          longitude: parseFloat(bestHotel.longitude),
+          latitudeDelta: 0.02,
+          longitudeDelta: 0.02,
+        });
+
+        // En iyi otel marker'ını özelleştir
+        return (
+          <Marker
+            coordinate={{
+              latitude: bestHotel.latitude,
+              longitude: bestHotel.longitude
+            }}
+            title={bestHotel.name}
+            description="✨ En İyi Seçim ✨"
+            zIndex={3}
+          >
+            <View style={[styles.bestHotelMarker, mapType === 'dark' && styles.darkModeMarker]}>
+              <Text style={[styles.hotelRating, mapType === 'dark' && styles.darkModeText]}>
+                {getStarRating(bestHotel.rating)}
+              </Text>
+              <View style={styles.bestHotelBadge}>
+                <Text style={styles.bestHotelBadgeText}>En İyi Seçim</Text>
+              </View>
+              <Ionicons name="star" size={16} color="#ffc107" style={styles.bestHotelIcon} />
+            </View>
+          </Marker>
+        );
       } else {
-        Alert.alert('Bilgi', 'Seçilen bölgede uygun otel bulunamadı.');
+        Alert.alert('Bilgi', `${radius} km yarıçapında uygun otel bulunamadı.`);
       }
     } catch (error) {
       console.error('Otel arama hatası:', error);
-      Alert.alert('Hata', 'En uygun otel aranırken bir hata oluştu.');
+      Alert.alert('Hata', 'En uygun otel aranırken bir hata oluştu. Lütfen tekrar deneyin.');
     } finally {
       setLoading(false);
     }
@@ -227,6 +291,17 @@ const PollutionMap = () => {
     }
   };
 
+  // Circle bileşenlerini optimize et
+  const renderCircle = React.useCallback(({ center, radius, color }) => (
+    <Circle
+      center={center}
+      radius={radius}
+      strokeColor={color}
+      fillColor={color}
+      strokeWidth={0}
+    />
+  ), []);
+
   return (
     <View style={styles.container}>
       <MapView
@@ -234,34 +309,40 @@ const PollutionMap = () => {
         initialRegion={ANTALYA_CENTER}
         region={location}
         mapType={mapType === 'satellite' ? 'satellite' : 'standard'}
-        onPress={(e) => setSelectedLocation(e.nativeEvent.coordinate)}
+        onPress={handleMapPress}
         customMapStyle={mapType === 'dark' ? darkMapStyle : null}
       >
         {/* Özel harita katmanı */}
         {customMapVisible && (
-          <UrlTile
-            urlTemplate="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
-            maximumZ={19}
-            flipY={false}
-            zIndex={-1}
-            tileSize={256}
-          />
+          <>
+            <UrlTile
+              urlTemplate="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+              maximumZ={19}
+              flipY={false}
+              zIndex={-1}
+              tileSize={256}
+            />
+            <UrlTile
+              urlTemplate="https://tile.openweathermap.org/map/temp_new/{z}/{x}/{y}.png?appid=33c8e4cb3fa6c93648cef3608ad3380c"
+              maximumZ={19}
+              flipY={false}
+              zIndex={1}
+              tileSize={256}
+              opacity={0.6}
+            />
+          </>
         )}
 
         {/* Hava kalitesi katmanı */}
         {(showAirQuality || customMapVisible) && interpolatedPoints.map((point, index) => (
-          <Circle
-            key={`air-${index}`}
-            center={{
+          renderCircle({
+            center: {
               latitude: point.latitude,
               longitude: point.longitude
-            }}
-            radius={300}
-            strokeColor={getPollutionColor(point.pollution_level)}
-            fillColor={getPollutionColor(point.pollution_level)}
-            strokeWidth={0}
-            zIndex={customMapVisible ? 1 : 0}
-          />
+            },
+            radius: 300,
+            color: getPollutionColor(point.pollution_level)
+          })
         ))}
 
         {/* Otel işaretleri */}
@@ -297,7 +378,7 @@ const PollutionMap = () => {
           <>
             <Circle
               center={selectedLocation}
-              radius={parseFloat(radius) * 1000}
+              radius={parseFloat(radius || '2') * 1000}
               strokeColor="rgba(52, 152, 219, 0.8)"
               fillColor="rgba(52, 152, 219, 0.1)"
               strokeWidth={2}
@@ -306,6 +387,7 @@ const PollutionMap = () => {
             <Marker
               coordinate={selectedLocation}
               title="Seçilen Konum"
+              description={`Arama yarıçapı: ${radius || '2'} km`}
               zIndex={2}
             >
               <View style={[styles.selectedMarker, mapType === 'dark' && styles.darkModeMarker]}>
@@ -317,22 +399,7 @@ const PollutionMap = () => {
 
         {/* En iyi otel */}
         {bestHotel && showHotels && (
-          <Marker
-            coordinate={{
-              latitude: bestHotel.latitude,
-              longitude: bestHotel.longitude
-            }}
-            title={bestHotel.name}
-            description={`${getStarRating(bestHotel.rating)} - En İyi Seçenek`}
-            zIndex={3}
-          >
-            <View style={[styles.bestHotelMarker, mapType === 'dark' && styles.darkModeMarker]}>
-              <Text style={[styles.hotelRating, mapType === 'dark' && styles.darkModeText]}>
-                {getStarRating(bestHotel.rating)}
-              </Text>
-              <Ionicons name="star" size={16} color="#ffc107" style={styles.bestHotelIcon} />
-            </View>
-          </Marker>
+          findBestHotel()
         )}
       </MapView>
 
@@ -364,14 +431,30 @@ const PollutionMap = () => {
           </View>
 
           <View style={styles.searchRadius}>
-            <Text style={styles.label}>Arama Yarıçapı (km)</Text>
-            <TextInput
-              style={styles.input}
-              value={radius}
-              onChangeText={(text) => setRadius(text.replace(/[^0-9]/g, ''))}
-              keyboardType="numeric"
-              maxLength={2}
-            />
+            <Text style={styles.label}>Arama Yarıçapı</Text>
+            <View style={styles.inputContainer}>
+              <TextInput
+                style={styles.radiusInput}
+                value={radius}
+                onChangeText={(text) => {
+                  const newValue = text.replace(/[^0-9]/g, '');
+                  if (newValue === '' || (parseInt(newValue) > 0 && parseInt(newValue) <= 99)) {
+                    setRadius(newValue);
+                  }
+                }}
+                placeholder="2"
+                keyboardType="numeric"
+                maxLength={2}
+              />
+              <Text style={styles.unitText}>km</Text>
+            </View>
+            <TouchableOpacity
+              style={styles.searchButton}
+              onPress={findBestHotel}
+              disabled={loading}
+            >
+              <Text style={styles.searchButtonText}>En Uygun Oteli Bul</Text>
+            </TouchableOpacity>
           </View>
 
           <View style={styles.mapTypeContainer}>
@@ -498,18 +581,41 @@ const styles = StyleSheet.create({
   },
   searchRadius: {
     marginBottom: 20,
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    padding: 15,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   label: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 8,
+    fontSize: 16,
+    color: '#333',
+    marginBottom: 10,
+    fontWeight: '500',
   },
-  input: {
+  inputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
     borderWidth: 1,
     borderColor: '#ddd',
-    borderRadius: 8,
-    padding: 12,
+    borderRadius: 6,
+    paddingHorizontal: 10,
+    backgroundColor: '#fff',
+  },
+  radiusInput: {
+    flex: 1,
+    height: 40,
     fontSize: 16,
+    color: '#333',
+    paddingVertical: 8,
+  },
+  unitText: {
+    fontSize: 16,
+    color: '#666',
+    marginLeft: 5,
   },
   mapTypeContainer: {
     marginBottom: 20,
@@ -606,6 +712,24 @@ const styles = StyleSheet.create({
     shadowRadius: 3.84,
     elevation: 5,
   },
+  bestHotelBadge: {
+    position: 'absolute',
+    top: -15,
+    backgroundColor: '#ffc107',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 2,
+    elevation: 3,
+  },
+  bestHotelBadgeText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 12,
+  },
   bestHotelIcon: {
     position: 'absolute',
     top: -8,
@@ -627,6 +751,18 @@ const styles = StyleSheet.create({
   },
   customMapText: {
     color: '#333',
+  },
+  searchButton: {
+    backgroundColor: '#28a745',
+    padding: 12,
+    borderRadius: 6,
+    alignItems: 'center',
+    marginTop: 15,
+  },
+  searchButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 });
 

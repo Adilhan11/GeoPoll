@@ -1,12 +1,17 @@
 const predefinedResponses = {
     merhaba: "Merhaba! Size nasıl yardımcı olabilirim?",
     nasilsin: "İyiyim, teşekkür ederim. Size nasıl yardımcı olabilirim?",
-    neYapabilirsin: "Size konum ve hava durumu hakkında bilgi verebilirim. Başka ne öğrenmek istersiniz?",
+    neYapabilirsin: "Size konum ve hava durumu hakkında bilgi verebilirim. Ayrıca harita ve hava kalitesi hakkında sorularınızı yanıtlayabilirim. Başka ne öğrenmek istersiniz?",
     tesekkur: "Rica ederim! Başka bir şey sormak ister misiniz?",
     iyiAksamlar: "İyi akşamlar, iyi geceler!",
     iyiGunler: "Size de iyi günler!",
     gunaydın: "Günaydın! Nasıl yardımcı olabilirim?",
-    default: "Üzgünüm, tam anlayamadım. Konum veya hava durumu hakkında bilgi almak ister misiniz?"
+    kirmizi: "Haritada bulunan kırmızı alanlar hava kalitesinin oldukça düşük olduğunu göstermektedir. mümkün oldukça kırmızı alanlarda bulunan konaklama yerlerinde konaklama :(",
+    yesil: "Haritadaki yeşil alanlar konaklaman için oldukça iyi hava kalitesinin olduğunu gösteriyor. Bu alanda bulduğun güzel bir otel senin için çok keyifli olabilir :)",
+    sari: "Sarı alanlar normal düzeydeki hava katmanlarını ifade etmektedir.",
+    otelSecimi: "Senin konforun ve sağlığın için otelleri seçerken otellerin yıldız sayısına ve hava kalitesine göre bir ağırlıklı ortalama hesaplıyorum. İstersen daha detaylı açıklayabilirim :)\n\nOtel yıldız seviyelerini 0.3 katsayısıyla, hava kalitesinin derecesini 0.7 katsayısıyla çarpıp sana bir ağırlıklı ortalama hesaplıyorum. Hepsi senin için :))",
+    hkmo: "HKMO (Harita ve Kadastro Mühendisleri Odası) genel başkanı Ali İpek'tir.",
+    default: "Üzgünüm, tam anlayamadım. Konum, hava durumu, hava kalitesi veya oteller hakkında bilgi almak ister misiniz?"
 };
 
 export const getOpenAIResponse = async (message) => {
@@ -17,7 +22,7 @@ export const getOpenAIResponse = async (message) => {
         if (lowerMessage.includes('merhaba') || lowerMessage.includes('selam')) {
             return predefinedResponses.merhaba;
         }
-        if (lowerMessage.includes('nasılsın')) {
+        if (lowerMessage.includes('nasilsin')) {
             return predefinedResponses.nasilsin;
         }
         if (lowerMessage.includes('ne yapabilirsin') || lowerMessage.includes('yardım')) {
@@ -32,8 +37,47 @@ export const getOpenAIResponse = async (message) => {
         if (lowerMessage.includes('iyi günler')) {
             return predefinedResponses.iyiGunler;
         }
-        if (lowerMessage.includes('günaydın')) {
+        if (lowerMessage.includes('günaydin')) {
             return predefinedResponses.gunaydın;
+        }
+
+        // Harita ve hava kalitesi soruları - daha esnek eşleştirme
+        if (lowerMessage.includes('kırmızı') ||
+            (lowerMessage.includes('kirmizi')) ||
+            (lowerMessage.includes('harita') && lowerMessage.includes('kırmızı')) ||
+            (lowerMessage.includes('harita') && lowerMessage.includes('kirmizi')) ||
+            (lowerMessage.includes('kırmızı') && lowerMessage.includes('renk')) ||
+            (lowerMessage.includes('kirmizi') && lowerMessage.includes('renk')) ||
+            (lowerMessage.includes('kırmızı') && lowerMessage.includes('alan')) ||
+            (lowerMessage.includes('kirmizi') && lowerMessage.includes('alan'))) {
+            return predefinedResponses.kirmizi;
+        }
+        if (lowerMessage.includes('yeşil') || lowerMessage.includes('yesil')) {
+            return predefinedResponses.yesil;
+        }
+        if (lowerMessage.includes('sarı') || lowerMessage.includes('sari') ||
+            (lowerMessage.includes('sarı') && lowerMessage.includes('alan')) ||
+            (lowerMessage.includes('sari') && lowerMessage.includes('alan'))) {
+            return predefinedResponses.sari;
+        }
+        if (lowerMessage.includes('otel') && (
+            lowerMessage.includes('seç') ||
+            lowerMessage.includes('nasıl') ||
+            lowerMessage.includes('neye göre') ||
+            lowerMessage.includes('belirle')
+        )) {
+            return predefinedResponses.otelSecimi;
+        }
+        if (lowerMessage.includes('en iyi') && lowerMessage.includes('otel') ||
+            lowerMessage.includes('oteli bul') ||
+            (lowerMessage.includes('otel') && lowerMessage.includes('bul')) ||
+            (lowerMessage.includes('uygun') && lowerMessage.includes('otel'))) {
+            return "Haritada seçtiğiniz konuma göre en iyi oteli bulmak için önce haritadan bir konum seçin ve arama yarıçapını belirleyin, ardından 'En Uygun Oteli Bul' butonuna tıklayın. Size hava kalitesi ve otel yıldızlarını değerlendirerek en iyi oteli göstereceğim! 🏨✨";
+        }
+        if (lowerMessage.includes('hkmo') ||
+            (lowerMessage.includes('başkan') && lowerMessage.includes('kim')) ||
+            (lowerMessage.includes('genel') && lowerMessage.includes('başkan'))) {
+            return predefinedResponses.hkmo;
         }
 
         // Eğer özel bir eşleşme bulunamazsa
