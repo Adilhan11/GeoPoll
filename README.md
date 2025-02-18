@@ -1,4 +1,4 @@
-# GeoPoll - Hava Kalitesi ve Konum Tabanlı Anket Uygulaması
+# GeoPoll - Hava Kalitesi Konum Tabanlı Uygulaması
 
 ## 📱 Proje Hakkında
 
