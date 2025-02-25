@@ -61,11 +61,9 @@ npm start
 
 ### Ana Harita Ekranı
 ![Map Interface](https://github.com/user-attachments/assets/c77d59f9-afae-49f9-94cd-9459a258d461)
-![Map Interface]()
-![Map Interface]()
-![Map Interface]()
+![Map Interface](https://github.com/user-attachments/assets/fb10736d-30d1-46ab-802c-13386387bfb1)
+![Map Interface](https://github.com/user-attachments/assets/92fffbe0-149a-4795-8c5d-ba3f9332298f)
+![Map Interface](https://github.com/user-attachments/assets/14e2b941-ded2-443c-8769-cacf606e4d5f)
 
 ### Veritabanı Görünümü
-![VeriTabanı]()
-
-
+![VeriTabanı](https://github.com/user-attachments/assets/e63cb373-ab68-4f89-b851-d5ee1ad72554)
